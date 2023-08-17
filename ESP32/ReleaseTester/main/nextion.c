@@ -21,8 +21,7 @@ void nextionTask(void * params ){
    NxState = 1;
 
     while(1){
-         unsigned short addr = 0, dataaddr = 0;
-         char tx_buffer[50];
+         unsigned short addr = 0, dataaddr = 0;         
 
         xTaskNotifyWait(0, ULONG_MAX, &nxnt, pdMS_TO_TICKS(20));
 
@@ -49,18 +48,30 @@ void nextionTask(void * params ){
                               oldState = 2;
                               NxPageSend("Graph");
                          }
+                         NxValueSend("x0",floatToCharArray(MIN));
+                         NxValueSend("x1",floatToCharArray(MED));
+                         NxValueSend("x2",floatToCharArray(MAX));
+                         if(START)
+                         {
+
+                              NxGraphPlot('5','0',floatToCharArray(PESO*GRAPH_FACTOR),1);
+
+                         }
                          break;  
                     case 3:
                          if(oldState != 3){
                               oldState = 3;
                               NxPageSend("Summary");
                          }
+
+
                          break;                            
                     case 4:
                          if(oldState != 4){
                               oldState = 4;
                               NxTextSend("CFG.cb0",floatToCharArray(gDELAY));   
                               NxTextSend("CFG.cb1",floatToCharArray(VMAX));
+                              NxValueSend("CFG.cb2",floatToCharArray(VUNITMM));
                               NxValueSend("CFG.n0",floatToCharArray(CALIB_L));
                               NxValueSend("CFG.n1",floatToCharArray(CALIB_H));                              
                               NxPageSend("CFG");
@@ -81,10 +92,6 @@ void nextionTask(void * params ){
         } else {
              //  xTaskNotifyWait(nxnt,0,&nxnt,portMAX_DELAY);
              if (LocateOnBuffer_EOC("BTN:CFG","###",&addr,&dataaddr)){
-                //snprintf(tx_buffer, sizeof(tx_buffer), "Palavra encontrada na posição: %d, %d\n", addr, dataaddr);
-                //uart_write_bytes(UART_NUM_1,tx_buffer,sizeof(tx_buffer));
-                //uart_write_bytes(UART_NUM_1,"\n",sizeof("\n"));
-                //uart_write_bytes(UART_NUM_1,"\r",sizeof("\r"));
                 oldState = NxState;
                 NxState = 4;                
                 ClearOnBuffer("BTN:CFG",addr);
@@ -108,32 +115,119 @@ void nextionTask(void * params ){
              if (LocateOnBuffer_EOC("TARA:","###",&addr,&dataaddr)){
                 oldState = NxState;
                 NxState = 1;
-                TARA = (UART1_BUF[dataaddr] - 48)*1000000000 + (UART1_BUF[dataaddr+1] - 48)*100000000 + \
-                (UART1_BUF[dataaddr+2] - 48)*10000000 + (UART1_BUF[dataaddr+3] - 48)*1000000 + (UART1_BUF[dataaddr+4] - 48)*100000 + \
-                 + (UART1_BUF[dataaddr+5] - 48)*10000 +  + (UART1_BUF[dataaddr+6] - 48)*1000 +  + (UART1_BUF[dataaddr+7] - 48)*100 \
-                  + (UART1_BUF[dataaddr+8] - 48)*10 +  + (UART1_BUF[dataaddr+9] - 48);
+                TARA =  NxTakeLongValue(dataaddr);
                 TARA = TARA/100;
+
+                if (TARA > 0 ){
+                    NxSend("x0.bco=","64623");
+                }else{
+                    NxSend("x0.bco=","65535");
+                }
 
                 ESP_LOGI("NX","TARA: %f, %s", TARA, UART1_BUF);                
                 ClearOnBuffer("TARA:",addr);                                
              }    
+
+             if (LocateOnBuffer_EOC("BTVEL:","###",&addr,&dataaddr)){
+                oldState = NxState;
+                NxState = 1;
+                VEL = NxTakeLongValue(dataaddr);
+                //VEL = TVELARA/100;
+                NxValueSend("x1",floatToCharArray(VEL));
+                ESP_LOGI("NX","VELOCIDADE: %f, %s", VEL, UART1_BUF);                
+                ClearOnBuffer("BTVEL:",addr);                                
+             }                
 
              if (LocateOnBuffer_EOC("BTRMP:","###",&addr,&dataaddr)){
                 oldState = NxState;
                 NxState = 1;
                 RAMPA = (UART1_BUF[dataaddr] - 48);
                 //ESP_LOGI("NX","Rampa Status: %d, %s", RAMPA, UART1_BUF);                
-                ClearOnBuffer("BTRMP:",addr);
-                
-                
+                ClearOnBuffer("BTRMP:",addr);                                
              }         
 
              if (LocateOnBuffer_EOC("BTN:APLIC","###",&addr,&dataaddr)){
                 oldState = NxState;
                 NxState = 1;
                 ClearOnBuffer("BTN:APLIC",addr);
-                ESP_LOGI("NX","CFG");
-             }                    
+
+               ESP_LOGI("NX","CFG APLICADA");
+
+               //Aplicando configurações, significa que enviou dados que devem ser retirados do buffer e aplicados.
+               if (LocateOnBuffer_EOC("SDEL:","###",&addr,&dataaddr)){
+                   // oldState = NxState;                    
+                    gDELAY = NxTakeLongValue(dataaddr);
+                    //VEL = TVELARA/100;
+                    //NxValueSend("x1",floatToCharArray(VEL));
+                    ESP_LOGI("NX","DELAY: %d, %s", gDELAY, UART1_BUF);                
+                    ClearOnBuffer("SDEL:",addr);                                
+               } 
+
+               if (LocateOnBuffer_EOC("SVEL:","###",&addr,&dataaddr)){
+                   // oldState = NxState;                    
+                    VMAX = NxTakeLongValue(dataaddr);
+                    //VEL = TVELARA/100;
+                    //NxValueSend("x1",floatToCharArray(VEL));
+                    ESP_LOGI("NX","MAX VELOCIDADE: %d, %s", VMAX, UART1_BUF);                
+                    ClearOnBuffer("SVEL:",addr);                                
+               }
+
+               if (LocateOnBuffer_EOC("BTNMM:","###",&addr,&dataaddr)){
+                   // oldState = NxState;                    
+                    VUNITMM = UART1_BUF[dataaddr]-48;
+                    //VEL = TVELARA/100;
+                    //NxValueSend("x1",floatToCharArray(VEL));
+                    ESP_LOGI("NX","VEL EM mm: %d, %s", VUNITMM, UART1_BUF);                
+                    ClearOnBuffer("BTNMM:",addr);                                
+               }
+
+               if (LocateOnBuffer_EOC("SCZER:","###",&addr,&dataaddr)){
+                   // oldState = NxState;                    
+                    CALIB_L = NxTakeLongValue(dataaddr);
+                    //VEL = TVELARA/100;
+                    //NxValueSend("x1",floatToCharArray(VEL));
+                    ESP_LOGI("NX","CAL MIN: %d, %s", CALIB_L, UART1_BUF);                
+                    ClearOnBuffer("SCZER:",addr);                                
+               } 
+
+               if (LocateOnBuffer_EOC("SCCAL:","###",&addr,&dataaddr)){
+                   // oldState = NxState;                    
+                    CALIB_H = NxTakeLongValue(dataaddr);
+                    //VEL = TVELARA/100;
+                    //NxValueSend("x1",floatToCharArray(VEL));
+                    ESP_LOGI("NX","CAL MAX: %d, %s", CALIB_H, UART1_BUF);                
+                    ClearOnBuffer("SCCAL:",addr);                                
+               }                 
+             }   
+
+             if (LocateOnBuffer_EOC("BTN:GRAPH","###",&addr,&dataaddr)){
+                oldState = NxState;
+                NxState = 2;
+                ESP_LOGI("NX","GRAPH");              
+                ClearOnBuffer("BTN:GRAPH:",addr);                                
+             }
+
+             if (LocateOnBuffer_EOC("BTN:SUMM","###",&addr,&dataaddr)){
+                oldState = NxState;
+                NxState = 3;
+                ESP_LOGI("NX","SUMMARY");
+                ClearOnBuffer("BTN:SUMM:",addr);                                
+             }
+
+             if (LocateOnBuffer_EOC("BTN:VOLT","###",&addr,&dataaddr)){
+                oldState = NxState;
+                switch (oldState)
+                {
+                case 2:
+                    NxState = 1;
+                    break;
+                
+                case 3:
+                    NxState = 2;              
+                    break;
+                }
+                ClearOnBuffer("BTN:VOLT:",addr); 
+             } 
 
         }    
     }
@@ -158,6 +252,27 @@ void NxValueSend(const char variable[], const char value[]) {
     uart_write_bytes(UART_NUM_1, (const char *)&data_to_send, 1);     */
      
 }
+
+
+void NxSend(const char variable[], const char value[]) {
+
+     
+     int l = charVarSize(variable) + charVarSize(value) + 6;// (size_t)(sizeof(variable)) +  (size_t)((value)) + 7;
+     
+     char buff[l];
+    uint8_t data_to_send = 0xFF;
+    uart_write_bytes(UART_NUM_1, (const char *)&data_to_send, 1);     
+    uart_write_bytes(UART_NUM_1, (const char *)&data_to_send, 1);
+    uart_write_bytes(UART_NUM_1, (const char *)&data_to_send, 1);
+     snprintf(buff, sizeof(buff), "%s%s%c%c%c", variable, value, 0xff, 0xff, 0xff);
+     uart_write_bytes(UART_NUM_1,buff,sizeof(buff));
+     
+ /*   uart_write_bytes(UART_NUM_1, (const char *)&data_to_send, 1);     
+    uart_write_bytes(UART_NUM_1, (const char *)&data_to_send, 1);
+    uart_write_bytes(UART_NUM_1, (const char *)&data_to_send, 1);     */
+     
+}
+
 
 void NxTextSend(const char variable[], const char value[]) {
 
@@ -219,6 +334,14 @@ void NxGraphPlot(const char graphID, const char can, const char value[], int hsc
     uart_write_bytes(UART_NUM_1,(char)(0xff),1);
     uart_write_bytes(UART_NUM_1,(char)(0xff),1);*/
   }
+}
+
+long NxTakeLongValue(int dataaddr){
+
+     return (UART1_BUF[dataaddr] - 48)*1000000000 + (UART1_BUF[dataaddr+1] - 48)*100000000 + \
+                (UART1_BUF[dataaddr+2] - 48)*10000000 + (UART1_BUF[dataaddr+3] - 48)*1000000 + (UART1_BUF[dataaddr+4] - 48)*100000 + \
+                 + (UART1_BUF[dataaddr+5] - 48)*10000 +  + (UART1_BUF[dataaddr+6] - 48)*1000 +  + (UART1_BUF[dataaddr+7] - 48)*100 \
+                  + (UART1_BUF[dataaddr+8] - 48)*10 +  + (UART1_BUF[dataaddr+9] - 48);
 }
 
 int charVarSize(const char var[]){

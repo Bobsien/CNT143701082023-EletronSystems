@@ -10,6 +10,8 @@
    void NxPageSend(const char page[]);
    void NxGraphPlot(const char graphID, const char can, const char value[], int hscale);
    int charVarSize(const char var[]);
+   long NxTakeLongValue(int dataaddr);
+   void NxSend(const char variable[], const char value[]);
    char* floatToCharArray(float value);
 
 #endif

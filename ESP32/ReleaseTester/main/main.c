@@ -21,6 +21,19 @@ void setup(){
     RAMPA = 0;  
     TARA = 0; 
     PESO = 0.37;
+    VEL = 0;
+    VUNITMM = 0;
+
+    START = 0;
+
+    //Estatistitivas
+    MAX = 0; 
+    MIN = 0;
+    MED = 0;
+    DESV = 0;
+    VARI = 0;
+    TRAB = 0;
+    memset(LEITURAS_PESO, 0, sizeof(LEITURAS_PESO));
 }
 
 void app_main(void)

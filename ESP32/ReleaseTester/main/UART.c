@@ -20,7 +20,9 @@ void uartTask(void * params)
 
     while(1){
         if (uart_read_bytes(UART_NUM_1,(uint8_t *) UART1_BUFHW,RX_BUX_SIZE,pdMS_TO_TICKS(20)) > 0 ){
+          memset(UART1_BUF, 0, sizeof(UART1_BUF)); //Limpa buffer Nextion (utilizado para tratamento de dados)
           snprintf(UART1_BUF, sizeof(UART1_BUFHW), UART1_BUFHW);
+          memset(UART1_BUFHW, 0, sizeof(UART1_BUFHW)); //Limpa buffer de hardware após transferido para buffer de tratamento
           xTaskNotify(nxNotify,0b00001,eSetBits);             
         }
     }
