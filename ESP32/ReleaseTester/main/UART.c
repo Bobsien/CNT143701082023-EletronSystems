@@ -2,7 +2,7 @@
 
 
 
-void uartTask(void * params)
+void uart1Task(void * params)
 {
     memset(UART1_BUFHW, 0, sizeof(UART1_BUFHW));
 
@@ -29,9 +29,34 @@ void uartTask(void * params)
 }
 
 
-           
+void uart2Task(void * params)
+{
+    memset(UART2_BUFHW, 0, sizeof(UART2_BUFHW));
 
-bool LocateOnBuffer_EOC(const char compare[], const char EOC[], unsigned short *addr, unsigned short *dataAddr) {
+    uart_config_t uart2Conf = {
+        .baud_rate = 9600,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+    };
+
+    uart_param_config(UART_NUM_2,&uart2Conf);
+    uart_set_pin(UART_NUM_2,TXD2_PIN,RXD2_PIN,UART_PIN_NO_CHANGE,UART_PIN_NO_CHANGE);
+    uart_driver_install(UART_NUM_2,RX_BUX_SIZE,0,0,NULL,0);
+
+    while(1){
+        if (uart_read_bytes(UART_NUM_2,(uint8_t *) UART1_BUFHW,RX_BUX_SIZE,pdMS_TO_TICKS(20)) > 0 ){
+          memset(UART2_BUF, 0, sizeof(UART2_BUF)); //Limpa buffer Nextion (utilizado para tratamento de dados)
+          snprintf(UART2_BUF, sizeof(UART2_BUFHW), UART2_BUFHW);
+          memset(UART2_BUFHW, 0, sizeof(UART2_BUFHW)); //Limpa buffer de hardware após transferido para buffer de tratamento
+          xTaskNotify(motorNotify,0b00001,eSetBits);             
+        }
+    }
+}           
+
+//Função utilizada para localização de comandos com EOC no Buffer da UART 1 (para Nextion)
+bool LocateOnBuffer1_EOC(const char compare[], const char EOC[], unsigned short *addr, unsigned short *dataAddr) {
   unsigned int datasize = 0, addrLocated = 0; //Add addrLocated no dia 31/10
   unsigned short located = 0;
 
@@ -75,7 +100,7 @@ bool LocateOnBuffer_EOC(const char compare[], const char EOC[], unsigned short *
 
 
 
-void ClearOnBuffer(const char term[], int addr) {
+void ClearOnBuffer1(const char term[], int addr) {
   int lenght = strlen(term);
 
   for ( unsigned int i = (unsigned int)addr; i <= (unsigned int)lenght + (unsigned int)addr; i++) {
@@ -83,4 +108,28 @@ void ClearOnBuffer(const char term[], int addr) {
   }
   
 
+}
+
+//Função para verificação de tamanho de array CHAR em tempo de execução
+//Utilizada para contornar limitações
+int charVarSize(const char var[]){
+    size_t variable_size = 0;
+
+    while (var[variable_size] != '\0') {
+        variable_size++;
+    }
+
+    return variable_size;
+}
+
+//Função para verificação de tamanho de array UINT8 em tempo de execução
+//Utilizada para contornar limitações
+int byteVarSize(const uint8_t var[]){
+    size_t variable_size = 0;
+
+    while (var[variable_size] != '\0') {
+        variable_size++;
+    }
+
+    return variable_size;
 }

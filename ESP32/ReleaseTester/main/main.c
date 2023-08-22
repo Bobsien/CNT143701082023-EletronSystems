@@ -9,8 +9,19 @@
 #include "hx.h"
 #include "UART.h"
 #include "nextion.h"
+#include "mksServo.h"
 
 TaskHandle_t nxNotify = NULL;
+TaskHandle_t motorNotify = NULL;
+
+void controlTask(void * params);
+
+
+//Pre-configuração do frame de comunicação
+mksServoFrame_t cmdFrame = { 
+        .head = 0xFA,
+        .addr = 1,
+};
 
 
 void setup(){
@@ -34,6 +45,9 @@ void setup(){
     VARI = 0;
     TRAB = 0;
     memset(LEITURAS_PESO, 0, sizeof(LEITURAS_PESO));
+
+
+    mksInit();
 }
 
 void app_main(void)
@@ -41,7 +55,48 @@ void app_main(void)
     setup();
 
     //xTaskCreate(hxTask,"hxTask",5*1024,NULL,2,NULL);
-    xTaskCreate(uartTask,"uartTask",5*1024,NULL,2,&nxNotify);
+    xTaskCreate(uart1Task,"uart1Task",5*1024,NULL,2,&nxNotify);
+    xTaskCreate(uart2Task,"uart2Task",5*1024,NULL,2,&motorNotify);
     xTaskCreate(nextionTask,"nextionTask",5*1024,NULL,2,&nxNotify);
+    xTaskCreate(controlTask,"controlTask",5*1024,NULL,2,&nxNotify);
 }
 
+
+void controlTask(void * params){
+    static bool startAck = 0, //Informa quando o comando de start foi processado
+                stopAck = 0;
+    while(1){
+        if(START){
+            if(!startAck){
+                stopAck = 0;
+                startAck = 1;
+
+                //Comando para velocidade constante
+                //if(!RAMPA){
+                    cmdFrame.Function =0xF6;  //Velocidade constante
+               // }
+                cmdFrame.dir = 0;
+                if(VUNITMM){
+                    cmdFrame.speed = VEL; 
+                }else{
+                    cmdFrame.speed = VEL*100; 
+                }                
+                mksSendSpeedCommand(cmdFrame);                
+            }
+
+
+        }else{
+            if(!stopAck){
+                stopAck = 1;
+                startAck = 0;
+                cmdFrame.Function =0xF6;  //Velocidade constante
+                cmdFrame.dir = 0;
+                cmdFrame.speed = 0;        
+                mksSendSpeedCommand(cmdFrame);
+            }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+
+}

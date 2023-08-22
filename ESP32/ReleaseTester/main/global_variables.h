@@ -13,7 +13,10 @@
     #define CEL_CARGA 5000 //Peso máximo suportado pela céçula de carga instalada em gramas.
     #define GRAPH_FACTOR (255/CEL_CARGA)
 
-    extern TaskHandle_t nxNotify;
+
+
+    extern TaskHandle_t nxNotify;           //Fila de notificações de eventos para Nextion atrelado a UART1
+    extern TaskHandle_t motorNotify;        //Fila de notiricações de eventos para Motor de passos atrelado a UART2
 
     //Configurações
     int VMAX;

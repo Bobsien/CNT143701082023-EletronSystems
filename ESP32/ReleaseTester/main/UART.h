@@ -15,6 +15,9 @@
     char UART1_BUFHW[RX_BUX_SIZE];
     char UART1_BUF[RX_BUX_SIZE];
 
+    char UART2_BUFHW[RX_BUX_SIZE];
+    char UART2_BUF[RX_BUX_SIZE];
+
     
 
 
@@ -22,8 +25,14 @@
     #define TXD1_PIN 25
     #define RXD1_PIN 26   
 
-    void uartTask(void * params);
-    bool LocateOnBuffer_EOC(const char compare[], const char EOC[], unsigned short *addr, unsigned short *dataAddr);
-    void ClearOnBuffer(const char term[], int addr);
+    #define TXD2_PIN 20
+    #define RXD2_PIN 21       
+
+    void uart1Task(void * params);
+    void uart2Task(void * params);
+    bool LocateOnBuffer1_EOC(const char compare[], const char EOC[], unsigned short *addr, unsigned short *dataAddr);
+    void ClearOnBuffer1(const char term[], int addr);
+    int charVarSize(const char var[]);
+    int byteVarSize(const uint8_t var[]);
 
 #endif
