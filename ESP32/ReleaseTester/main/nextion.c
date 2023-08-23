@@ -26,8 +26,7 @@ void nextionTask(void * params ){
         xTaskNotifyWait(0, ULONG_MAX, &nxnt, pdMS_TO_TICKS(20));
 
         if (nxnt == 0) {
-             
-               //  NxValueSend("x0","37");
+
                switch(NxState){
                     case 1:
                          if(oldState != 1){
@@ -36,12 +35,22 @@ void nextionTask(void * params ){
                          }
 
                          NxValueSend("x0",floatToCharArray( (PESO-TARA)*100));
+
                          if (RAMPA){
                               NxTextSend("Main.t0","Rampa");
                          }else{
                               NxTextSend("Main.t0","Linear");
                          }
-                         
+
+                         if(START)
+                         {
+                              if(floatVarSize(LEITURAS_PESO) > nxGraphMain){
+                                   NxGraphPlot('4','0',floatToCharArray((LEITURAS_PESO[nxGraphMain]*255)/CEL_CARGA),1);
+                                   ESP_LOGI("GRAPH1","%d S: %d I:%d",(int)((float)(LEITURAS_PESO[nxGraphMain]*255)/CEL_CARGA), floatVarSize(LEITURAS_PESO),nxGraphMain );
+                                   nxGraphMain++;
+                              }
+                         }
+
                          break;
                     case 2:
                          if(oldState != 2){
@@ -51,11 +60,13 @@ void nextionTask(void * params ){
                          NxValueSend("x0",floatToCharArray(MIN));
                          NxValueSend("x1",floatToCharArray(MED));
                          NxValueSend("x2",floatToCharArray(MAX));
+
                          if(START)
                          {
-
-                              NxGraphPlot('5','0',floatToCharArray(PESO*GRAPH_FACTOR),1);
-
+                              if(floatVarSize(LEITURAS_PESO) >= nxGraphComplete){
+                                   NxGraphPlot('5','0',floatToCharArray(LEITURAS_PESO[nxGraphComplete]*GRAPH_FACTOR),1);
+                                   nxGraphComplete++;
+                              }
                          }
                          break;  
                     case 3:
@@ -91,13 +102,20 @@ void nextionTask(void * params ){
 
         } else {
              //  xTaskNotifyWait(nxnt,0,&nxnt,portMAX_DELAY);
+             if (LocateOnBuffer1_EOC("BTNSTART:","###",&addr,&dataaddr)){
+                oldState = NxState;
+                NxState = 1;             
+                START= (UART1_BUF[dataaddr] - 48);   
+                ClearOnBuffer1("BTNSTART:",addr);
+                ESP_LOGI("NX","STARTING/STOP: %d",START);
+             }
+
              if (LocateOnBuffer1_EOC("BTN:CFG","###",&addr,&dataaddr)){
                 oldState = NxState;
                 NxState = 4;                
                 ClearOnBuffer1("BTN:CFG",addr);
                 ESP_LOGI("NX","CFG");
              }
-
 
              if (LocateOnBuffer1_EOC("BTN:CFVOLT","###",&addr,&dataaddr)){
                 oldState = NxState;                
@@ -154,6 +172,7 @@ void nextionTask(void * params ){
                ESP_LOGI("NX","CFG APLICADA");
 
                //Aplicando configurações, significa que enviou dados que devem ser retirados do buffer e aplicados.
+               
                if (LocateOnBuffer1_EOC("SDEL:","###",&addr,&dataaddr)){
                    // oldState = NxState;                    
                     gDELAY = NxTakeLongValue(dataaddr);
@@ -318,10 +337,17 @@ void NxPageSend(const char page[]) {
 void NxGraphPlot(const char graphID, const char can, const char value[], int hscale) {
   short i = 0;
   for (i = 0; i < hscale; i++) {
-    ets_delay_us(2000);
-     int l = 1 + 1 + charVarSize(value) +  12;
+    ets_delay_us(2000);    
+     int l = charVarSize(value) +  12;
     char buff[l];
-    snprintf(buff, sizeof(buff), "add %c,%c,%s%c%c%c\n\r", graphID, can, value, 0xff, 0xff, 0xff);
+
+     uint8_t data_to_send = 0xFF;
+
+     uart_write_bytes(UART_NUM_1, (const char *)&data_to_send, 1);     
+     uart_write_bytes(UART_NUM_1, (const char *)&data_to_send, 1);
+     uart_write_bytes(UART_NUM_1, (const char *)&data_to_send, 1);
+
+    snprintf(buff, sizeof(buff), "add %c,%c,%s%c%c%c", graphID, can, value, 0xff, 0xff, 0xff);
     uart_write_bytes(UART_NUM_1,buff,sizeof(buff));
 
    /* uart_write_bytes(UART_NUM_1,"add ",sizeof("add "));

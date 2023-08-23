@@ -6,6 +6,7 @@
 #include <esp_task.h>
 #include "esp_log.h"
 #include "hx711.h"
+#include "global_variables.h"
 
 #include "hx.h"
 
@@ -38,7 +39,8 @@ void hxTask(void *params){
         if (error != ESP_OK){
             ESP_LOGE("HX711", "Erro de leitura");
         }else{
-            printf("Valor RAW: %d, Peso: %f \n", data, hx711ConvVal(data));
+            //printf("Valor RAW: %d, Peso: %f \n", data, hx711ConvVal(data));
+            PESO=hx711ConvVal(data);
         }
 
         vTaskDelay(pdMS_TO_TICKS(13));

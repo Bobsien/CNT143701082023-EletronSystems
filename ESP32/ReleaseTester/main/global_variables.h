@@ -9,7 +9,8 @@
     #include "esp_log.h"
 
 
-    #define N_LEITURAS 14400
+    #define N_LEITURAS 780
+    #define COMPRIMENTO_TESTE 350 //em mm
     #define CEL_CARGA 5000 //Peso máximo suportado pela céçula de carga instalada em gramas.
     #define GRAPH_FACTOR (255/CEL_CARGA)
 

@@ -133,3 +133,15 @@ int byteVarSize(const uint8_t var[]){
 
     return variable_size;
 }
+
+//Função para verificação de tamanho de array CHAR em tempo de execução
+//Utilizada para contornar limitações
+int floatVarSize(const float var[]){
+    size_t variable_size = 0;
+
+    while (var[variable_size] != '\0') {
+        variable_size++;
+    }
+
+    return variable_size;
+}

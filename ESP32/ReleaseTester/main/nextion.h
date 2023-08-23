@@ -4,6 +4,9 @@
 
    #include "global_variables.h"   
 
+   int nxGraphMain;
+   int nxGraphComplete;
+
    void nextionTask(void * params);
    void NxValueSend(const char variable[], const char value[]);
    void NxTextSend(const char variable[], const char value[]);

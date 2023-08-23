@@ -34,5 +34,6 @@
     void ClearOnBuffer1(const char term[], int addr);
     int charVarSize(const char var[]);
     int byteVarSize(const uint8_t var[]);
+    int floatVarSize(const float var[]);
 
 #endif
