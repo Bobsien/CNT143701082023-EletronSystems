@@ -1,5 +1,5 @@
 #include "mksServo.h"
-#include "global_variables.h"
+#include "global.h"  
 #include "UART.h"
 
 //Faz a calibração do encoder

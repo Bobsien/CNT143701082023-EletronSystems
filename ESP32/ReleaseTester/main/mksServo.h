@@ -8,7 +8,7 @@
     #include <esp_task.h>
     #include "esp_log.h"
 
-    #include "global_variables.h"
+    #include "global.h"
 
     //Definições utilizadas pelo sistema de controle do motor
     #define Mstep  16          //Mstep

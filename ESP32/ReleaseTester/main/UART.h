@@ -5,7 +5,7 @@
     #include "esp_log.h"
     #include "driver/uart.h"
     #include "string.h"    
-    #include "global_variables.h"
+    #include "global.h"
 
 
 

@@ -5,7 +5,7 @@
 #include <esp_task.h>
 #include "esp_log.h"
 
-
+#include "global.h"  
 #include "hx.h"
 #include "UART.h"
 #include "nextion.h"
@@ -15,8 +15,7 @@ TaskHandle_t nxNotify = NULL;
 TaskHandle_t motorNotify = NULL;
 
 void controlTask(void * params);
-int totalTestTimeMs(float vel);
-int cicleReadingTimeMs(float vel);
+
 
 
 
@@ -28,15 +27,26 @@ mksServoFrame_t cmdFrame = {
 
 
 void setup(){
+    // Inicialização da NVS
+    esp_err_t ret = nvs_flash_init();
+
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
     VMAX = 50;
-    gDELAY = 2;
+    gDELAY = 0;
     CALIB_H = 12345212;
     CALIB_L = 212; 
     RAMPA = 0;  
     TARA = 0; 
-    PESO = 0.37;
+    PESO = 0;
     VEL = 10;
-    VUNITMM = 1;
+    VUNITMM = 0;
+
+    loadCfgValues();
 
     START = 0;
 
@@ -64,7 +74,8 @@ void app_main(void)
     //xTaskCreate(hxTask,"hxTask",5*1024,NULL,2,NULL);
     
    
-    xTaskCreate(nextionTask,"nextionTask",5*1024,NULL,2,&nxNotify);
+    xTaskCreate(nextionTxTask,"nextionTxTask",5*1024,NULL,2,&nxNotify);
+    xTaskCreate(nextionRxTask,"nextionRxTask",5*1024,NULL,2,&nxNotify);
     xTaskCreate(controlTask,"controlTask",5*1024,NULL,2,NULL);
 }
 
@@ -100,20 +111,32 @@ void controlTask(void * params){
                 }                
                 mksSendSpeedCommand(cmdFrame); 
                 nCyclesMax = totalTestTimeMs(VEL)/cicleReadingTimeMs(VEL);
+                if(nCyclesMax > N_LEITURAS){
+                    nCyclesMax = N_LEITURAS;
+                }
                 nCycles = 0;
 
+                ESP_LOGI("MAIN","VEL: %f mm/min TTIME: %d CYCLE: %d ms n: %d ",VEL,totalTestTimeMs(VEL), cicleReadingTimeMs(VEL), nCyclesMax);
             }
 
             if(nCyclesMax < nCycles){
                 START = 0;
-                stopAck = 0;                              
+                stopAck = 0;      
+                NxValueSend("Main.bt0","0");   //Concluiu teste em modo automatico, altera estado do botão na tela principal
+                summarize();
             }else{
-                LEITURAS_PESO[nCycles]= rand() % 5001; //PESO;                
+                //LEITURAS_PESO[nCycles]= rand() % 5001; //PESO; 
+                PESO = rand() % 5001;
+                storeReadedData((PESO/1000)*9.81,nCycles);
+                ESP_LOGI("TESTE","%f", LEITURAS_PESO[nCycles]);
+                if(nCycles > 5){
+                    summarize();    //Realiza calculos de sumario de valores
+                }
                 nCycles++;
             }
 
             vTaskDelay(pdMS_TO_TICKS(cicleReadingTimeMs(VEL)));
-            ESP_LOGI("MAIN","VEL: %f mm/min TTOTAL: %d CYCLE: %d n: %d PESO: %f",VEL,totalTestTimeMs(VEL), cicleReadingTimeMs(VEL), nCyclesMax,LEITURAS_PESO[nCycles-1]);
+           // 
         }else{
             if(!stopAck){
                 ESP_LOGI("MAIN","STOPED");
@@ -125,45 +148,8 @@ void controlTask(void * params){
                 mksSendSpeedCommand(cmdFrame);      */          
             }
             vTaskDelay(pdMS_TO_TICKS(20));
-        }
-
-        
-    }
-
-}
-
-
-//Esta função retorna apenas o tempo total que o teste vai levar para ser concluido em ms
-int totalTestTimeMs(float vel){
-    long mm_seg = 0;
-    float factor = 0,
-          time_ms = 0;          
-    
-    //Primeiro, ajustamos a unidade de medida para mm/min
-    if (VUNITMM){
-       mm_seg = vel; 
-    }else{
-        //Caso esteja em m/min
-       mm_seg = vel*100;
-    }
-    //Agora, verificamos quanto tempo proporcional a 1 minuto irá gastar para concluir o teste
-    //onde "COMPRIMENTO_TESTE" é o comprimento de fita a ser testado 
-    factor = COMPRIMENTO_TESTE/mm_seg; 
-    //Aplicando o fator (% de tempo de 1 minuto) sobre 60 segundos e convertendo para ms
-    time_ms = factor*60*1000; //Como resultado, temos o tempo (em ms) que levará para concluir o teste
-    return (int)time_ms;
-}
-
-int cicleReadingTimeMs(float vel){    
-    float time_ms = 0,
-          cicle = 0;
-
-    time_ms = totalTestTimeMs(vel);
-    cicle = time_ms/N_LEITURAS;
-
-    if(cicle < 13){
-        return 13;
-    }else{
-        return (int)cicle;
+        }        
     }
 }
+
+

@@ -7,7 +7,7 @@ void uart1Task(void * params)
     memset(UART1_BUFHW, 0, sizeof(UART1_BUFHW));
 
     uart_config_t uart1Conf = {
-        .baud_rate = 9600,
+        .baud_rate = 38400,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,

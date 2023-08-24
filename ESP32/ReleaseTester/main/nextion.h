@@ -2,12 +2,13 @@
    #define __NEXTION_H
 
 
-   #include "global_variables.h"   
+   #include "global.h"   
 
    int nxGraphMain;
    int nxGraphComplete;
 
-   void nextionTask(void * params);
+   void nextionTxTask(void * params);
+   void nextionRxTask(void * params);
    void NxValueSend(const char variable[], const char value[]);
    void NxTextSend(const char variable[], const char value[]);
    void NxPageSend(const char page[]);

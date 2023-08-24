@@ -6,7 +6,7 @@
 #include <esp_task.h>
 #include "esp_log.h"
 #include "hx711.h"
-#include "global_variables.h"
+#include "global.h"
 
 #include "hx.h"
 
