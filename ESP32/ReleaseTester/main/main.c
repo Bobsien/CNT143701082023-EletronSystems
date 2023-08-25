@@ -35,7 +35,7 @@ void setup(){
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-
+        
     VMAX = 50;
     gDELAY = 0;
     CALIB_H = 12345212;
@@ -45,6 +45,7 @@ void setup(){
     PESO = 0;
     VEL = 10;
     VUNITMM = 0;
+    LOADCEL_RAW = 0;
 
     loadCfgValues();
 
@@ -74,7 +75,7 @@ void app_main(void)
     //xTaskCreate(hxTask,"hxTask",5*1024,NULL,2,NULL);
     
    
-    xTaskCreate(nextionTxTask,"nextionTxTask",5*1024,NULL,2,&nxNotify);
+    xTaskCreate(nextionTxTask,"nextionTxTask",32*1024,NULL,2,&nxNotify);
     xTaskCreate(nextionRxTask,"nextionRxTask",5*1024,NULL,2,&nxNotify);
     xTaskCreate(controlTask,"controlTask",5*1024,NULL,2,NULL);
 }
@@ -95,7 +96,10 @@ void controlTask(void * params){
                 stopAck = 0;
                 startAck = 1;
 
-                memset(LEITURAS_PESO,'\0',N_LEITURAS);
+                memset(LEITURAS_PESO,'\0',N_LEITURAS*sizeof(float));
+               /* for (int i=0; i<N_LEITURAS; i++){
+                    LEITURAS_PESO[i]='\0';
+                }*/
                 nxGraphMain = 0;
                 nxGraphComplete = 0;                 
 
@@ -124,11 +128,12 @@ void controlTask(void * params){
                 stopAck = 0;      
                 NxValueSend("Main.bt0","0");   //Concluiu teste em modo automatico, altera estado do botão na tela principal
                 summarize();
+                ESP_LOGI("SUMMARY","MAX: %f MIN: %f MED: %f DESV: %f VARI: %f TRAB: %f", MAX, MIN, MED, DESV, VARI, TRAB);
             }else{
                 //LEITURAS_PESO[nCycles]= rand() % 5001; //PESO; 
                 PESO = rand() % 5001;
                 storeReadedData((PESO/1000)*9.81,nCycles);
-                ESP_LOGI("TESTE","%f", LEITURAS_PESO[nCycles]);
+                //ESP_LOGI("TESTE","%f", LEITURAS_PESO[nCycles]);
                 if(nCycles > 5){
                     summarize();    //Realiza calculos de sumario de valores
                 }

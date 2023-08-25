@@ -105,8 +105,7 @@ void summarize(){
     MED = meanValueOnArray(LEITURAS_PESO);
     DESV = stdDevOnArray(LEITURAS_PESO);
     VARI = varianceOnArray(LEITURAS_PESO);
-    TRAB  = meanWorkTestResult(LEITURAS_PESO);
-    ESP_LOGI("SUMMARY","MAX: %f MIN: %f MED: %f DESV: %f VARI: %f TRAB: %f", MAX, MIN, MED, DESV, VARI, TRAB);
+    TRAB  = meanWorkTestResult(LEITURAS_PESO);    
 }
 
 //Esta função tem objetivo armazenar os valores lidos no array LEITURAS_PESO de forma escalonada
@@ -134,7 +133,7 @@ void storeReadedData(float val, int cycle){
   //Populamos o Array repetindo leituras conforme escala necessária
   for (int i = cycle*scaling; i < next; i++){
     LEITURAS_PESO[i] = val;
-    ESP_LOGI("STORE","PESO: %f",val);
+   // ESP_LOGI("STORE","PESO: %f",val);
   }
 }
 

@@ -40,6 +40,7 @@ void hxTask(void *params){
             ESP_LOGE("HX711", "Erro de leitura");
         }else{
             //printf("Valor RAW: %d, Peso: %f \n", data, hx711ConvVal(data));
+            LOADCEL_RAW=data;
             PESO=hx711ConvVal(data);
         }
 

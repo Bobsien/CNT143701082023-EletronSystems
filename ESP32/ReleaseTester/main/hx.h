@@ -7,7 +7,9 @@
 
     #define CALBALP01 194
     #define CALBALV01 -2063498
-    #define CALBALV00 -771108       
+    #define CALBALV00 -771108   
+
+    int32_t LOADCEL_RAW;    
 
     //Prot. de funcao
     void hxTask(void *params);

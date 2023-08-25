@@ -1,53 +1,98 @@
 #include "nextion.h"
 #include "UART.h"
 #include "esp_log.h"
+#include "hx.h"
 
+//Definições de index de estados para cada tela - Não alterar ordem
+#define SBOOT 0
+#define SSOBRE 1
+#define SMAIN 2
+#define SGRAPH 3
+#define SSUMMARY 4
+#define SCFG 5
+
+//Variaveis de controle da máquina de estados
 int NxState = 0;
 int oldState = 0;
 
 void nextionTxTask(void * params ){
-    //unsigned int nxnt = 0;
-
    vTaskDelay(pdMS_TO_TICKS(100));
 
-   //Envia configurações
-   NxTextSend("CFG.cb0",floatToCharArray(gDELAY));   
-   NxTextSend("CFG.cb1",floatToCharArray(VMAX));
-   NxValueSend("CFG.cb2",floatToCharArray(VUNITMM));
-   
-   NxValueSend("CFG.n0",floatToCharArray(CALIB_L));
-   NxValueSend("CFG.n1",floatToCharArray(CALIB_H));
-   NxPageSend("Boot");
 
-    if (RAMPA){
-          NxTextSend("Main.t0","Rampa");
-    }else{
-          NxTextSend("Main.t0","Linear");
-    }
-
-   NxValueSend("Main.x0",floatToCharArray((PESO-TARA)*100));
-   NxValueSend("Main.x1",floatToCharArray(VEL));
-
-   vTaskDelay(pdMS_TO_TICKS(5000));
-   NxPageSend("Main");
-   NxState = 1;
+   NxState = 0;
 
     while(1){
-         //unsigned short addr = 0, dataaddr = 0;         
-
-         //xTaskNotifyWait(0, ULONG_MAX, &nxnt, pdMS_TO_TICKS(20));
-
-       // if (nxnt == 0) {
-
+     float cargaAtual = 0;
+     char *temp;
                switch(NxState){
-                    case 1:
+                    case SBOOT:
+                          //Envia configurações
+                          
+                          NxTextSend("fw",FIRMVERSION);
+                          NxTextSend("SN",SN);
+                          temp = floatToCharArray(gDELAY);
+                          NxTextSend("CFG.cb0",temp);   
+                          heap_caps_free(temp);
+                          temp = floatToCharArray(VMAX);
+                          NxTextSend("CFG.cb1",temp);
+                          heap_caps_free(temp);
+                          temp = floatToCharArray(VUNITMM);
+                          NxValueSend("CFG.cb2",temp);
+                          heap_caps_free(temp);
+                          temp = floatToCharArray(CALIB_L);
+                          NxValueSend("CFG.n0",temp);
+                          heap_caps_free(temp);
+                          temp = floatToCharArray(CALIB_H);
+                          NxValueSend("CFG.n1",temp);
+                          heap_caps_free(temp);
+                          NxPageSend("Boot");
+
+                          if (RAMPA){
+                                   NxTextSend("Main.t0","Rampa");
+                          }else{
+                                   NxTextSend("Main.t0","Linear");
+                          }
+                          cargaAtual =((PESO/1000)*9.81)-TARA; //Calcula a carga atual em Newtons - OBS: O peso vem em gramas
+                          temp = floatToCharArray(cargaAtual*100);
+                          NxValueSend("Main.x0",temp);   
+                          heap_caps_free(temp);
+                          temp = floatToCharArray(VEL);
+                          NxValueSend("Main.x1",temp);
+                          heap_caps_free(temp);
+                          
+                          oldState = SBOOT;
+                          NxState = SMAIN;                          
+
+                          for (unsigned short intro_count=0; intro_count<250; intro_count++)
+                          {
+                              vTaskDelay(pdMS_TO_TICKS(20));
+                              if(NxState == 1){  //Se NxState mudar para 1 significa que usuário clicou em Sobre
+                                   break;
+                              }
+                          }
+                          
+                          
+
+                          break;        
+
+                    case SSOBRE:
+                         if(oldState != SSOBRE){
+                              oldState = SSOBRE;
+                              NxPageSend("Sobre");
+                         }
+                         break;
+
+                    case SMAIN:
                          //Estado 1 - Refente a tela principal na Nextion IDE
-                         if(oldState != 1){  //Verifica se veio de outro estado
-                              oldState = 1;
+                         if(oldState != SMAIN){  //Verifica se veio de outro estado
+                              oldState = SMAIN;
                               NxPageSend("Main");
                          }
 
-                         NxValueSend("x0",floatToCharArray( (PESO-TARA)*100));
+                          cargaAtual =((PESO/1000)*9.81)-TARA; //Calcula a carga atual em Newtons - OBS: O peso vem em gramas
+                          temp = floatToCharArray(cargaAtual*100);
+                          NxValueSend("Main.x0",temp); 
+                          heap_caps_free(temp);
 
                          if (RAMPA){
                               NxTextSend("Main.t0","Rampa");
@@ -58,7 +103,9 @@ void nextionTxTask(void * params ){
 
                          if(floatVarSize(LEITURAS_PESO) > nxGraphMain){                          
                               for(nxGraphMain=nxGraphMain; floatVarSize(LEITURAS_PESO) >= nxGraphMain; nxGraphMain++){
-                                    NxGraphPlot('4','0',floatToCharArray((LEITURAS_PESO[nxGraphMain]*255)/((CEL_CARGA/1000)*9.81)),1);
+                                    temp = floatToCharArray((LEITURAS_PESO[nxGraphMain]*255)/((CEL_CARGA/1000)*9.81));
+                                    NxGraphPlot('4','0',temp,1);
+                                    heap_caps_free(temp);
                                    // ESP_LOGI("GRAPH1","%d S: %d I:%d",(int)((float)(LEITURAS_PESO[nxGraphMain]*255)/CEL_CARGA), floatVarSize(LEITURAS_PESO),nxGraphMain );
                               }
                               //nxGraphMain++;
@@ -66,58 +113,85 @@ void nextionTxTask(void * params ){
 
 
                          break;
-                    case 2:
+                    case SGRAPH:
                          //Estado 2 - Referente a tela Graph na Nextion IDE
-                         if(oldState != 2){  //Verifica se veio de outro estado
-                              oldState = 2;
+                         if(oldState != SGRAPH){  //Verifica se veio de outro estado
+                              oldState = SGRAPH;
                               NxPageSend("Graph");
                          }
-                         NxValueSend("x0",floatToCharArray(MIN*100));
-                         NxValueSend("x1",floatToCharArray(MED*100));
-                         NxValueSend("x2",floatToCharArray(MAX*100));
+                         temp = floatToCharArray(MIN*100);
+                         NxValueSend("x0",temp);
+                         heap_caps_free(temp);
+                         temp = floatToCharArray(MED*100);
+                         NxValueSend("x1",temp);
+                         heap_caps_free(temp);
+                         temp = floatToCharArray(MAX*100);
+                         NxValueSend("x2",temp);
+                         heap_caps_free(temp);
 
 
                          if(floatVarSize(LEITURAS_PESO) >= nxGraphComplete){
                               for(nxGraphComplete=nxGraphComplete; floatVarSize(LEITURAS_PESO) >= nxGraphComplete; nxGraphComplete++){
-                                    NxGraphPlot('5','0',floatToCharArray((LEITURAS_PESO[nxGraphComplete]*255)/((CEL_CARGA/1000)*9.81)),1);
+                                    temp = floatToCharArray((LEITURAS_PESO[nxGraphComplete]*255)/((CEL_CARGA/1000)*9.81));
+                                    NxGraphPlot('5','0',temp,1);
+                                    heap_caps_free(temp);
                               }
                          }
 
                          break;  
-                    case 3:
-                         if(oldState != 3){
-                              oldState = 3;
+                    case SSUMMARY:
+                         if(oldState != SSUMMARY){
+                              oldState = SSUMMARY;
                               NxPageSend("Summary");
                          }
 
-                         NxValueSend("x0",floatToCharArray(MIN*100));
-                         NxValueSend("x1",floatToCharArray(MED*100));
-                         NxValueSend("x2",floatToCharArray(MAX*100));
-                         NxValueSend("x3",floatToCharArray(DESV*100));
-                         NxValueSend("x4",floatToCharArray(VARI*100));
-                         NxValueSend("x5",floatToCharArray(TRAB*100));
+                         temp = floatToCharArray(MIN*100);
+                         NxValueSend("x0",temp);
+                         heap_caps_free(temp);
+                         temp=floatToCharArray(MED*100);
+                         NxValueSend("x1",temp);
+                         heap_caps_free(temp);
+                         temp = floatToCharArray(MAX*100);
+                         NxValueSend("x2",temp);
+                         heap_caps_free(temp);
+                         temp = floatToCharArray(DESV*100);
+                         NxValueSend("x3",temp);
+                         heap_caps_free(temp);
+                         temp = floatToCharArray(VARI*100);
+                         NxValueSend("x4",temp);
+                         heap_caps_free(temp);
+                         temp = floatToCharArray(TRAB*100);
+                         NxValueSend("x5",temp);
+                         heap_caps_free(temp);
 
                          break;                            
-                    case 4:
-                         if(oldState != 4){
-                              oldState = 4;
-                              NxTextSend("CFG.cb0",floatToCharArray(gDELAY));   
-                              NxTextSend("CFG.cb1",floatToCharArray(VMAX));
-                              NxValueSend("CFG.cb2",floatToCharArray(VUNITMM));
-                              NxValueSend("CFG.n0",floatToCharArray(CALIB_L));
-                              NxValueSend("CFG.n1",floatToCharArray(CALIB_H));                              
+                    case SCFG:
+                         if(oldState != SCFG){
+                              oldState = SCFG;
+                              temp = floatToCharArray(gDELAY);
+                              NxTextSend("CFG.cb0",temp);   
+                              heap_caps_free(temp);
+                              temp = floatToCharArray(VMAX);
+                              NxTextSend("CFG.cb1",temp);
+                              heap_caps_free(temp);
+                              temp = floatToCharArray(VUNITMM);
+                              NxValueSend("CFG.cb2",temp);     
+                              heap_caps_free(temp);                       
                               NxPageSend("CFG");
                          }
-                         break;
-                    case 5:
-                         if(oldState != 5){
-                              oldState = 5;
-                              NxPageSend("Sobre");
-                         }
+                         temp = floatToCharArray(CALIB_L);
+                         NxValueSend("CFG.n0",temp);
+                         heap_caps_free(temp);
+                         temp = floatToCharArray(CALIB_H);
+                         NxValueSend("CFG.n1",temp);    
+                         heap_caps_free(temp);                       
                          break;
 
+
                }
-                    
+
+               //size_t freeHeapSize = esp_get_free_heap_size();
+              // printf("Memória livre disponível: %d bytes\n", freeHeapSize);                    
                vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
@@ -125,6 +199,7 @@ void nextionTxTask(void * params ){
 
 void nextionRxTask(void * params ){
     unsigned int nxnt = 0;
+    char *temp;
 
    vTaskDelay(pdMS_TO_TICKS(2000));
 
@@ -132,26 +207,31 @@ void nextionRxTask(void * params ){
           unsigned short addr = 0, dataaddr = 0;  
           xTaskNotifyWait(0, ULONG_MAX, &nxnt, pdMS_TO_TICKS(20));       
 
-            
-             //  xTaskNotifyWait(nxnt,0,&nxnt,portMAX_DELAY);
              if (LocateOnBuffer1_EOC("BTNSTART:","###",&addr,&dataaddr)){
                 oldState = NxState;
-                NxState = 1;             
+                NxState = SMAIN;             
                 START= (UART1_BUF[dataaddr] - 48);   
                 ClearOnBuffer1("BTNSTART:",addr);
                 ESP_LOGI("NX","STARTING/STOP: %d",START);
              }
 
+             if (LocateOnBuffer1_EOC("BTN:SOBRE","###",&addr,&dataaddr)){
+                oldState = NxState;
+                NxState = SSOBRE;                
+                ClearOnBuffer1("BTN:SOBRE",addr);
+                ESP_LOGI("NX","SOBRE");
+             }
+
              if (LocateOnBuffer1_EOC("BTN:CFG","###",&addr,&dataaddr)){
                 oldState = NxState;
-                NxState = 4;                
+                NxState = SCFG;                
                 ClearOnBuffer1("BTN:CFG",addr);
                 ESP_LOGI("NX","CFG");
              }
 
              if (LocateOnBuffer1_EOC("BTN:CFVOLT","###",&addr,&dataaddr)){
                 oldState = NxState;                
-                NxState = 1;
+                NxState = SMAIN;
                 ClearOnBuffer1("BTN:CFVOLT",addr);
                 ESP_LOGI("NX","MAIN");
              }
@@ -164,7 +244,7 @@ void nextionRxTask(void * params ){
 
              if (LocateOnBuffer1_EOC("TARA:","###",&addr,&dataaddr)){
                 oldState = NxState;
-                NxState = 1;
+                NxState = SMAIN;
                 TARA =  NxTakeLongValue(dataaddr);
                 TARA = TARA/100;
 
@@ -182,75 +262,93 @@ void nextionRxTask(void * params ){
 
              if (LocateOnBuffer1_EOC("BTVEL:","###",&addr,&dataaddr)){
                 oldState = NxState;
-                NxState = 1;
+                NxState = SMAIN;
                 VEL = NxTakeLongValue(dataaddr);
                 //VEL = TVELARA/100;
-                NxValueSend("x1",floatToCharArray(VEL));
+                temp = floatToCharArray(VEL);
+                NxValueSend("x1",temp);
+                heap_caps_free(temp);
                 ESP_LOGI("NX","VELOCIDADE: %f, %s", VEL, UART1_BUF);                
                 ClearOnBuffer1("BTVEL:",addr);                                
              }                
 
              if (LocateOnBuffer1_EOC("BTRMP:","###",&addr,&dataaddr)){
                 oldState = NxState;
-                NxState = 1;
+                NxState = SMAIN;
                 RAMPA = (UART1_BUF[dataaddr] - 48);
                 //ESP_LOGI("NX","Rampa Status: %d, %s", RAMPA, UART1_BUF);                
                 ClearOnBuffer1("BTRMP:",addr);                                
              }         
 
-             if (LocateOnBuffer1_EOC("BTN:APLIC","###",&addr,&dataaddr)){
+
+             if (LocateOnBuffer1_EOC("CFG:CAL1","###",&addr,&dataaddr)){
                 oldState = NxState;
-                NxState = 1;
-                ClearOnBuffer1("BTN:APLIC",addr);
+                NxState = NxState;
+                CALIB_H = LOADCEL_RAW;                             
+                ClearOnBuffer1("CFG:CAL1:",addr);                                
+             }   
 
-               ESP_LOGI("NX","CFG APLICADA");
 
-               //Aplicando configurações, significa que enviou dados que devem ser retirados do buffer e aplicados.
-               
-               if (LocateOnBuffer1_EOC("SDEL:","###",&addr,&dataaddr)){
-                    gDELAY = NxTakeLongValue(dataaddr);
-                    ESP_LOGI("NX","DELAY: %d, %s", gDELAY, UART1_BUF);                
-                    ClearOnBuffer1("SDEL:",addr);                                
-               } 
+             if (LocateOnBuffer1_EOC("CFG:CALZ","###",&addr,&dataaddr)){
+                oldState = NxState;
+                NxState = NxState;
+                CALIB_L = LOADCEL_RAW;                             
+                ClearOnBuffer1("CFG:CALZ",addr);                                
+             }                
 
-               if (LocateOnBuffer1_EOC("SVEL:","###",&addr,&dataaddr)){
-                    VMAX = NxTakeLongValue(dataaddr);
-                    ESP_LOGI("NX","MAX VELOCIDADE: %d, %s", VMAX, UART1_BUF);                
-                    ClearOnBuffer1("SVEL:",addr);                                
-               }
+             if (LocateOnBuffer1_EOC("BTN:APLIC","###",&addr,&dataaddr)){
+                    oldState = NxState;
+                    NxState = SMAIN;
+                    ClearOnBuffer1("BTN:APLIC",addr);
 
-               if (LocateOnBuffer1_EOC("BTNMM:","###",&addr,&dataaddr)){
-                    VUNITMM = UART1_BUF[dataaddr]-48;
-                    ESP_LOGI("NX","VEL EM mm: %d, %s", VUNITMM, UART1_BUF);                
-                    ClearOnBuffer1("BTNMM:",addr);                                
-               }
+                    ESP_LOGI("NX","CFG APLICADA");
 
-               if (LocateOnBuffer1_EOC("SCZER:","###",&addr,&dataaddr)){
-                    CALIB_L = NxTakeLongValue(dataaddr);
-                    ESP_LOGI("NX","CAL MIN: %d, %s", CALIB_L, UART1_BUF);                
-                    ClearOnBuffer1("SCZER:",addr);                                
-               } 
+                    //Aplicando configurações, significa que enviou dados que devem ser retirados do buffer e aplicados.
+                    
+                    if (LocateOnBuffer1_EOC("SDEL:","###",&addr,&dataaddr)){
+                         gDELAY = NxTakeLongValue(dataaddr);
+                         ESP_LOGI("NX","DELAY: %d, %s", gDELAY, UART1_BUF);                
+                         ClearOnBuffer1("SDEL:",addr);                                
+                    } 
 
-               if (LocateOnBuffer1_EOC("SCCAL:","###",&addr,&dataaddr)){                        
-                    CALIB_H = NxTakeLongValue(dataaddr);
-                    ESP_LOGI("NX","CAL MAX: %d, %s", CALIB_H, UART1_BUF);                
-                    ClearOnBuffer1("SCCAL:",addr);                                
-               }            
+                    if (LocateOnBuffer1_EOC("SVEL:","###",&addr,&dataaddr)){
+                         VMAX = NxTakeLongValue(dataaddr);
+                         ESP_LOGI("NX","MAX VELOCIDADE: %d", VMAX);                
+                         ClearOnBuffer1("SVEL:",addr);                                
+                    }
 
-               //Salva as configurações
-               saveCfgValues();
+                    if (LocateOnBuffer1_EOC("BTNMM:","###",&addr,&dataaddr)){
+                         VUNITMM = UART1_BUF[dataaddr]-48;
+                         ESP_LOGI("NX","VEL EM mm: %d", VUNITMM);                
+                         ClearOnBuffer1("BTNMM:",addr);                                
+                    }
+
+                    if (LocateOnBuffer1_EOC("SCZER:","###",&addr,&dataaddr)){
+                         CALIB_L = NxTakeLongValue(dataaddr);
+                         ESP_LOGI("NX","CAL MIN: %d", CALIB_L);                
+                         ClearOnBuffer1("SCZER:",addr);                                
+                    } 
+
+                    if (LocateOnBuffer1_EOC("SCCAL:","###",&addr,&dataaddr)){                        
+                         CALIB_H = NxTakeLongValue(dataaddr);
+                         ESP_LOGI("NX","CAL MAX: %d", CALIB_H);                
+                         ClearOnBuffer1("SCCAL:",addr);                                
+                    }            
+
+                    //Salva as configurações
+                    saveCfgValues();
              }   
 
              if (LocateOnBuffer1_EOC("BTN:GRAPH","###",&addr,&dataaddr)){
                 oldState = NxState;
-                NxState = 2;
+                NxState = SGRAPH;
                 ESP_LOGI("NX","GRAPH");              
                 ClearOnBuffer1("BTN:GRAPH:",addr);                                
              }
 
              if (LocateOnBuffer1_EOC("BTN:SUMM","###",&addr,&dataaddr)){
                 oldState = NxState;
-                NxState = 3;
+                NxState = SSUMMARY;
                 ESP_LOGI("NX","SUMMARY");
                 ClearOnBuffer1("BTN:SUMM:",addr);                                
              }
@@ -259,13 +357,17 @@ void nextionRxTask(void * params ){
                 oldState = NxState;
                 switch (oldState)
                 {
-                case 2:
-                    NxState = 1;
-                    break;
-                
-                case 3:
-                    NxState = 2;              
-                    break;
+                    case SSOBRE:
+                         NxState = SBOOT;
+                         break;
+
+                    case SGRAPH:
+                         NxState = SMAIN;
+                         break;
+                    
+                    case SSUMMARY:
+                         NxState = SGRAPH;              
+                         break;
                 }
                 ClearOnBuffer1("BTN:VOLT:",addr); 
              } 
@@ -400,13 +502,13 @@ char* floatToCharArray(float value) {
     char* result;
 
     requiredSize = snprintf(NULL, 0, "%d", intValue) + 1; // Tamanho necessário, incluindo terminador nulo
-    result = (char*)malloc(requiredSize * sizeof(char)); // Aloca memória dinamicamente
+    //result = malloc((requiredSize +1) * sizeof(char)); // Aloca memória dinamicamente
+    result = heap_caps_malloc((requiredSize +1) * sizeof(char),MALLOC_CAP_8BIT); // Aloca memória dinamicamente
 
     if (result != NULL) {
         snprintf(result, requiredSize, "%d", intValue); // Formata o valor inteiro na string
+        return result;
     }else{
-     result = "00";
-    }
-
-    return result;
+     return "00";     
+    }    
 }
