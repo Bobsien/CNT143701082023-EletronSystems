@@ -9,6 +9,7 @@
 #include "global.h"
 
 #include "hx.h"
+#include "global.h"
 
 void hxTask(void *params){
     hx711_t dev ={
@@ -52,8 +53,8 @@ float hx711ConvVal(long RAW){
     float value = 0,
           unit = 0;
 
-          unit = (float)CALBALP01/(float)(CALBALV01 - CALBALV00);
-          value = (float)(RAW - CALBALV00) * unit;
+          unit = (float)PESO_BASE_CALIB/(float)(CALIB_H - CALIB_L);
+          value = (float)(RAW - CALIB_L) * unit;
 
           return value;
 }

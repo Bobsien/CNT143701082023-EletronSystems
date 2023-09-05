@@ -11,8 +11,9 @@
     #include "nvs_flash.h"
     #include "nvs.h"
 
-    #define FIRMVERSION "0.90"
+    #define FIRMVERSION "0.91"
     #define SN "wyq18261maqkh1" //Serial Number de 14 digitos (numeros e letras sem acento)
+
 
     #define N_LEITURAS 780
     #define COMPRIMENTO_TESTE 350 //em mm

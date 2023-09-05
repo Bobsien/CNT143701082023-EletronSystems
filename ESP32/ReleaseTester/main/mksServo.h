@@ -11,13 +11,15 @@
     #include "global.h"
 
     //Definições utilizadas pelo sistema de controle do motor
-    #define Mstep  16          //Mstep
+    #define Mstep  188          //Mstep - O Mstep deve ser ajsutando conforme velcidade maxima esperada para o motor utilizando as equações
     //#define speed  1          //speed
    // #define velocidade  32500 //velocidade    
     #define pi  3.141592    //pi
     #define diametro  48.8  //diamentro da calandra em milimetros
 
-    #define m57Cmodel 1 
+    #define m57Cmodel 1
+    #define SERVOADDR 0xE0
+    #define DEGREE18M 1
 
 
     typedef struct mksServoFrame{        
@@ -36,7 +38,7 @@
     void mksInit();
     void mksSendCommand(uint8_t commands[]);
     int mksSpeedCalc(long vel);
-    uint8_t mksCRC(mksServoFrame_t cmd);
+    uint8_t mksCRC(const uint8_t CMD[]) ;
     void mksSendSpeedCommand(mksServoFrame_t cmd);
 
 

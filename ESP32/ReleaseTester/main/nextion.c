@@ -256,7 +256,7 @@ void nextionRxTask(void * params ){
                     NxSend("t2.bco=","65535");
                 }
 
-                ESP_LOGI("NX","TARA: %f, %s", TARA, UART1_BUF);                
+                ESP_LOGI("NX","TARA: %f", TARA);                
                 ClearOnBuffer1("TARA:",addr);                                
              }    
 
@@ -268,7 +268,7 @@ void nextionRxTask(void * params ){
                 temp = floatToCharArray(VEL);
                 NxValueSend("x1",temp);
                 heap_caps_free(temp);
-                ESP_LOGI("NX","VELOCIDADE: %f, %s", VEL, UART1_BUF);                
+                ESP_LOGI("NX","VELOCIDADE: %f", VEL);                
                 ClearOnBuffer1("BTVEL:",addr);                                
              }                
 
@@ -307,7 +307,7 @@ void nextionRxTask(void * params ){
                     
                     if (LocateOnBuffer1_EOC("SDEL:","###",&addr,&dataaddr)){
                          gDELAY = NxTakeLongValue(dataaddr);
-                         ESP_LOGI("NX","DELAY: %d, %s", gDELAY, UART1_BUF);                
+                         ESP_LOGI("NX","DELAY: %d", gDELAY);                
                          ClearOnBuffer1("SDEL:",addr);                                
                     } 
 

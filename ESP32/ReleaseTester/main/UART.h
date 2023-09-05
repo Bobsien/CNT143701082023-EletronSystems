@@ -24,9 +24,9 @@
     //NEXTION
     #define TXD1_PIN 25
     #define RXD1_PIN 26   
-
-    #define TXD2_PIN 20
-    #define RXD2_PIN 21       
+    //MOTOR
+    #define TXD2_PIN 33
+    #define RXD2_PIN 32       
 
     void uart1Task(void * params);
     void uart2Task(void * params);

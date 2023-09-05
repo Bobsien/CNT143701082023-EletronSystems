@@ -1,3 +1,9 @@
+//###########################################################################//
+// Bobsien Engenharia LTDA - 05-09-2023
+// Responsavel: Josias D. Martins
+// ESP-IDF: 4.4.1
+//###########################################################################//
+
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -16,13 +22,10 @@ TaskHandle_t motorNotify = NULL;
 
 void controlTask(void * params);
 
-
-
-
 //Pre-configuração do frame de comunicação
 mksServoFrame_t cmdFrame = { 
         .head = 0xFA,
-        .addr = 1,
+        .addr = SERVOADDR,
 };
 
 
@@ -72,12 +75,10 @@ void app_main(void)
 {
     setup();
 
-    //xTaskCreate(hxTask,"hxTask",5*1024,NULL,2,NULL);
-    
-   
-    xTaskCreate(nextionTxTask,"nextionTxTask",32*1024,NULL,2,&nxNotify);
-    xTaskCreate(nextionRxTask,"nextionRxTask",5*1024,NULL,2,&nxNotify);
-    xTaskCreate(controlTask,"controlTask",5*1024,NULL,2,NULL);
+    xTaskCreate(hxTask,"hxTask",5*1024,NULL,2,NULL);                        //Task HX711
+    xTaskCreate(nextionTxTask,"nextionTxTask",32*1024,NULL,2,&nxNotify);    //Task envio de dados Nextion
+    xTaskCreate(nextionRxTask,"nextionRxTask",5*1024,NULL,2,&nxNotify);     //Task recebimento de dados Nextion
+    xTaskCreate(controlTask,"controlTask",5*1024,NULL,2,NULL);              //Task principal de controle do sistema
 }
 
 
@@ -97,9 +98,6 @@ void controlTask(void * params){
                 startAck = 1;
 
                 memset(LEITURAS_PESO,'\0',N_LEITURAS*sizeof(float));
-               /* for (int i=0; i<N_LEITURAS; i++){
-                    LEITURAS_PESO[i]='\0';
-                }*/
                 nxGraphMain = 0;
                 nxGraphComplete = 0;                 
 
@@ -111,7 +109,7 @@ void controlTask(void * params){
                 if(VUNITMM){
                     cmdFrame.speed = VEL; 
                 }else{
-                    cmdFrame.speed = VEL*100; 
+                    cmdFrame.speed = VEL*1000; 
                 }                
                 mksSendSpeedCommand(cmdFrame); 
                 nCyclesMax = totalTestTimeMs(VEL)/cicleReadingTimeMs(VEL);
@@ -130,27 +128,26 @@ void controlTask(void * params){
                 summarize();
                 ESP_LOGI("SUMMARY","MAX: %f MIN: %f MED: %f DESV: %f VARI: %f TRAB: %f", MAX, MIN, MED, DESV, VARI, TRAB);
             }else{
-                //LEITURAS_PESO[nCycles]= rand() % 5001; //PESO; 
-                PESO = rand() % 5001;
+                //PESO = rand() % 5001;         //Valores randon - utilizar para simulação sem HX711 - Comentar a Task HX711 antes de habilitar essa linha
                 storeReadedData((PESO/1000)*9.81,nCycles);
-                //ESP_LOGI("TESTE","%f", LEITURAS_PESO[nCycles]);
+                ESP_LOGI("CARGA","%f", LEITURAS_PESO[nCycles]);
                 if(nCycles > 5){
                     summarize();    //Realiza calculos de sumario de valores
                 }
                 nCycles++;
             }
 
-            vTaskDelay(pdMS_TO_TICKS(cicleReadingTimeMs(VEL)));
-           // 
+            vTaskDelay(pdMS_TO_TICKS(cicleReadingTimeMs(VEL)));           
         }else{
             if(!stopAck){
                 ESP_LOGI("MAIN","STOPED");
                 stopAck = 1;
                 startAck = 0;
-             /*   cmdFrame.Function =0xF6;  //Velocidade constante
-                cmdFrame.dir = 0;
-                cmdFrame.speed = 0;       
-                mksSendSpeedCommand(cmdFrame);      */          
+              //  cmdFrame.Function =0xF6;  //Velocidade constante
+              //  cmdFrame.dir = 0;
+              //  cmdFrame.speed = 0;       
+              //  mksSendSpeedCommand(cmdFrame);    
+                mksInit();        //Reinicia o motor desativando o mesmo          
             }
             vTaskDelay(pdMS_TO_TICKS(20));
         }        
